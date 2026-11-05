@@ -20,7 +20,7 @@
 //       ctrl+y copy last reply (OSC 52) · alt+y copy last code block · alt+x list images · alt+c clear images
 //       alt+h searchable prompt history · alt+g changes review (alt+j/k move, alt+r refresh)
 //
-// Vimpel design-system pass: one warm-ink / oxide-red palette, consistent thin rules, muted metadata,
+// Vimpel design-system pass: semantic colour hierarchy (headings / body / labels / metadata), lowercase UI copy, one warm-ink / oxide-red palette, consistent thin rules, muted metadata,
 // and shared visual tokens across chat, activity, receipts, status, popups, and configuration.
 // Agent approvals/subagent controls are not simulated: OpenClaw must expose their APIs.
 // Finds the tui chunk by content (no hardcoded hash), never writes a file that
@@ -31,7 +31,7 @@ const os = require("os");
 const { spawnSync } = require("child_process");
 const args = process.argv.slice(2);
 // printed on every run so it is obvious which copy of the script is executing
-const OC_PATCH_VERSION = "2026.11.02-port25-vimpel-design-system-pass";
+const OC_PATCH_VERSION = "2026.11.05-port26-vimpel-transparency-pass";
 // the openclaw release this port was written against
 const OC_TARGET_VERSION = "2026.10.6";
 const RESTORE = args.includes("--restore");
@@ -62,7 +62,7 @@ receiptIndent: 2, // columns the "└ 8.2s · 3 tools · +1.4k tokens" line is i
 terminalTitle: true, // sets the terminal/tmux tab title to "vimpel · working…" / "vimpel · idle" (cleared on exit)
 bellAfterMs: 30000, // ring the terminal bell when a run that took at least this long finishes. 0 = never
 collapseHeader: "always", // after the first message the 3-row header folds to one line. "small" = only on the phone profile, "never" = keep it
-groupTools: true, // Antigravity-inspired low-noise activity stream; ctrl+x cycles grouped / expanded / folded.
+groupTools: false, // transparency-first: show every tool call; ctrl+x toggles expanded / folded.
 receiptTimeline: true, // mini bar in each receipt: coloured blocks for tool calls sized by duration, dots = the model thinking
 receiptGlyph: "\u25b0", // block used for tool calls in the receipt timeline (dots are the model thinking)
 // visual glyph packs: braille (default), blocks, minimal, ascii. individual glyph overrides still win.
@@ -123,7 +123,7 @@ toolVerbs: {
 yaps: [
 "✦ alright, what are we building?", "give me a problem with interesting edges", "I brought a terminal and questionable confidence",
 "your move. I'll bring the tools", "/ opens the command hatch", "esc interrupts me mid-monologue",
-"ctrl+x: fold the machinery into a quieter view", "ctrl+\\ or alt+d: full / compact / zen", "ctrl+f: find the line that started it all",
+"ctrl+x: fold / expand tool-call detail", "ctrl+\\ or alt+d: full / compact / zen", "ctrl+f: find the line that started it all",
 "ctrl+y: copy the last answer", "alt+h: dig up an old prompt", "alt+g: inspect the git fallout",
 "small prompt, big consequences", "let's make the computer earn its electricity", "no ceremony. just the work.",
 "the pixels are warm; the shell is ready", "I can be concise. I can also show my working."
@@ -212,7 +212,7 @@ border: "#52443D", userBg: "#302826", userText: "#EBE0DE", systemText: "#CEC4C2"
 toolPendingBg: "#302826", toolSuccessBg: "#262A1B", toolErrorBg: "#351D1D",
 toolTitle: "#FF5033", toolOutput: "#CEC4C2", quote: "#988F8C", quoteBorder: "#52443D",
 code: "#F5B49F", codeBlock: "#19120F", codeBorder: "#52443D", link: "#FF806B",
-error: "#FF4E52", success: "#9C9152"
+error: "#FF4E52", success: "#9C9152", heading: "#FF806B", body: "#EBE0DE", metadata: "#988F8C", label: "#F5B49F"
 },
 tokyonight: {
 text: "#C0CAF5", dim: "#8B94B8", accent: "#E0AF68", accentSoft: "#EBC17C",
@@ -220,7 +220,7 @@ border: "#3B4261", userBg: "#24283B", userText: "#C0CAF5", systemText: "#8B94B8"
 toolPendingBg: "#1F2335", toolSuccessBg: "#1E2A2A", toolErrorBg: "#2E2030",
 toolTitle: "#E0AF68", toolOutput: "#8B94B8", quote: "#8B94B8", quoteBorder: "#565F89",
 code: "#7DCFFF", codeBlock: "#1F2335", codeBorder: "#3B4261", link: "#7DCFFF",
-error: "#F7768E", success: "#9ECE6A"
+error: "#F7768E", success: "#9ECE6A", heading: "#EBC17C", body: "#C0CAF5", metadata: "#8B94B8", label: "#7DCFFF"
 },
 daylight: {
 text: "#242C44", dim: "#6B7394", accent: "#8C6C3E", accentSoft: "#A9834F",
@@ -228,7 +228,7 @@ border: "#C6CAD6", userBg: "#DCDFE9", userText: "#242C44", systemText: "#6B7394"
 toolPendingBg: "#E4E6EE", toolSuccessBg: "#D7E7DB", toolErrorBg: "#F2D7DE",
 toolTitle: "#8C6C3E", toolOutput: "#565F89", quote: "#6B7394", quoteBorder: "#9AA2C0",
 code: "#007197", codeBlock: "#E4E6EE", codeBorder: "#C6CAD6", link: "#007197",
-error: "#D41E57", success: "#2E6B5E"
+error: "#D41E57", success: "#2E6B5E", heading: "#8C6C3E", body: "#242C44", metadata: "#6B7394", label: "#007197"
 },
 gruvbox: {
 text: "#EBDBB2", dim: "#A89984", accent: "#D79921", accentSoft: "#FABD2F",
@@ -236,7 +236,7 @@ border: "#504945", userBg: "#3C3836", userText: "#EBDBB2", systemText: "#A89984"
 toolPendingBg: "#32302F", toolSuccessBg: "#2E3B2C", toolErrorBg: "#3E2A28",
 toolTitle: "#D79921", toolOutput: "#A89984", quote: "#928374", quoteBorder: "#665C54",
 code: "#83A598", codeBlock: "#32302F", codeBorder: "#504945", link: "#83A598",
-error: "#FB4934", success: "#B8BB26"
+error: "#FB4934", success: "#B8BB26", heading: "#FABD2F", body: "#EBDBB2", metadata: "#928374", label: "#83A598"
 },
 catppuccin: {
 text: "#CDD6F4", dim: "#A6ADC8", accent: "#F9E2AF", accentSoft: "#FAE3B0",
@@ -244,7 +244,7 @@ border: "#45475A", userBg: "#313244", userText: "#CDD6F4", systemText: "#A6ADC8"
 toolPendingBg: "#262637", toolSuccessBg: "#26332E", toolErrorBg: "#3B2731",
 toolTitle: "#F9E2AF", toolOutput: "#A6ADC8", quote: "#A6ADC8", quoteBorder: "#585B70",
 code: "#89B4FA", codeBlock: "#262637", codeBorder: "#45475A", link: "#74C7EC",
-error: "#F38BA8", success: "#A6E3A1"
+error: "#F38BA8", success: "#A6E3A1", heading: "#F9E2AF", body: "#CDD6F4", metadata: "#7F849C", label: "#89DCEB"
 }
 };
 // ask the terminal for its background colour (OSC 11). runs in a short-lived child so a
@@ -297,13 +297,13 @@ if (!tty.isatty(0) || !tty.isatty(1)) {
 console.error("--configure needs an interactive terminal.");
 process.exit(1);
 }
-console.log("\n✦ VIMPEL / OPENCLAW TUI PATCHER — configuration dashboard");
+console.log("\n✦ vimpel / openclaw tui patcher — configuration dashboard");
 const Q = (key, question, choices) => ({ key, question, choices, current: CFG[key] });
 // presets: one answer and skip the rest (pick "custom" to answer everything)
 const PRESETS = {
-minimal: { glyphPack: "minimal", collapseHeader: "always", groupTools: true, receiptLegend: false, terminalTitle: false, density: "compact", userRail: false, messageGrouping: true, outputCollapseThreshold: 20, inlineDiff: "auto", receiptSparkSummary: false, agentPulseDot: false, zenContextSliver: false, searchEnabled: false, inputCounter: false, tokenEstimate: false, multiLineIndicator: false, cmdPrefix: false, barMargin: 0 },
+minimal: { glyphPack: "minimal", collapseHeader: "always", groupTools: false, receiptLegend: false, terminalTitle: false, density: "compact", userRail: false, messageGrouping: true, outputCollapseThreshold: 20, inlineDiff: "auto", receiptSparkSummary: false, agentPulseDot: false, zenContextSliver: false, searchEnabled: false, inputCounter: false, tokenEstimate: false, multiLineIndicator: false, cmdPrefix: false, barMargin: 0 },
 dev: { glyphPack: "braille", collapseHeader: "always", groupTools: false, receiptLegend: true, terminalTitle: true, density: "full", userRail: true, messageGrouping: true, outputCollapseThreshold: 0, inlineDiff: "auto", receiptSparkSummary: true, agentPulseDot: true, zenContextSliver: true, searchEnabled: true, inputCounter: true, tokenEstimate: true, multiLineIndicator: true, cmdPrefix: true, barMargin: 1, vimStatusGit: true },
-full: { glyphPack: "blocks", collapseHeader: "always", groupTools: true, receiptLegend: true, terminalTitle: true, density: "full", userRail: true, messageGrouping: true, outputCollapseThreshold: 20, inlineDiff: "auto", receiptSparkSummary: true, agentPulseDot: true, zenContextSliver: true, searchEnabled: true, inputCounter: true, tokenEstimate: true, multiLineIndicator: true, cmdPrefix: true, barMargin: 0 }
+full: { glyphPack: "blocks", collapseHeader: "always", groupTools: false, receiptLegend: true, terminalTitle: true, density: "full", userRail: true, messageGrouping: true, outputCollapseThreshold: 20, inlineDiff: "auto", receiptSparkSummary: true, agentPulseDot: true, zenContextSliver: true, searchEnabled: true, inputCounter: true, tokenEstimate: true, multiLineIndicator: true, cmdPrefix: true, barMargin: 0 }
 };
 const items = [
 { preset: { question: "start from a preset? (or answer each setting)", PRESETS, custom: "answer each setting" } },
@@ -402,8 +402,8 @@ Q("searchEnabled", "log search (ctrl+f)", [
 { note: [
 "\nkeyboard shortcuts:",
 "  ctrl+\\ or alt+d — cycle layout density (full / compact / zen)",
-"  ctrl+x  — cycle tool view (grouped / expanded / folded)",
-"  ctrl+r  — toggle context overlay (expand spark/usage chart)",
+"  ctrl+x  — toggle tool detail (expanded / folded)",
+"  ctrl+r  — toggle context overlay (expand context and usage details)",
 "  alt+h   — search and reuse a previous prompt",
 "  alt+g   — toggle the git changes panel",
 "  ctrl+f  — search the log (esc closes)",
@@ -482,13 +482,13 @@ function draw() {
  const split=(l,r)=>"│ "+fit(l,leftW)+" │ "+fit(r,rightW)+" │";
  const rule="─".repeat(w-2), thin=rule;
  rows.push("┌"+rule+"┐");
- rows.push(full(cyan("✦ VIMPEL")+bold("  /  OPENCLAW TUI PATCHER")+dim("  CONFIG")));
+ rows.push(full(cyan("✦ vimpel")+bold("  /  openclaw tui patcher")+dim("  config")));
  rows.push(full(dim("RAW STRUCTURE  ·  WARM INK  ·  NO FILLER")));
  rows.push("├"+rule+"┤");
  const state=dirty?cyan("◆ UNSAVED CHANGES"):green("◆ CONFIG IN SYNC");
- rows.push(full("PROFILE  "+cyan(presetName.toUpperCase())+"     "+state));
+ rows.push(full("profile  "+cyan(presetName.toLowerCase())+"     "+state));
  rows.push("├"+"─".repeat(leftW+2)+"┼"+"─".repeat(rightW+2)+"┤");
- rows.push(split(bold(" SECTIONS"),bold(" SETTING  /  VALUE")));
+ rows.push(split(bold(" sections"),bold(" setting  /  value")));
  rows.push("├"+thin.slice(0,leftW+2)+"┼"+thin.slice(0,rightW+2)+"┤");
  const available=Math.max(5,Math.min(categories.length,(output.rows||24)-12));
  const catStart=Math.max(0,Math.min(section-Math.floor(available/2),categories.length-available));
@@ -957,6 +957,7 @@ process.getBuiltinModule("fs").appendFileSync((process.env.TMPDIR || "/tmp") + "
 if (why) return "$? " + why;
 }
 globalThis.__ocSessCost = usd != null && usd >= 0 ? usd : null;
+globalThis.__ocCostSource = costKey ? ("provider field: " + costKey) : (usd != null ? "estimated from configured per-million-token rates" : (why === "price" ? "unavailable: no configured model rate" : why === "tokens" ? "unavailable: input/output split missing" : "unavailable: provider did not report cost"));
 globalThis.__ocSessModel = [info.modelProvider, info.model].filter(Boolean).join("/") || String(label || "");
 if (usd == null || !(usd > 0)) return "";
 return usd < 0.01 ? "<$0.01" : (costKey ? "$" : "~$") + (usd < 10 ? usd.toFixed(2) : usd.toFixed(1));
@@ -997,6 +998,24 @@ return out;
 }
 function ocDurFine(ms) { return ms < 60000 ? (ms / 1000).toFixed(1) + "s" : ocDur(ms); }
 function ocTokFmt(n) { return n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, "") + "k" : String(n); }
+// Provider-reported per-message usage. Keep this separate from context occupancy and
+// from streamed character estimates; missing fields stay unknown rather than being guessed.
+function ocUsageSnapshot(message) {
+ const u = message && message.usage && typeof message.usage === "object" ? message.usage : null;
+ if (!u) return null;
+ const pick = (obj, keys) => {
+  for (const k of keys) if (obj && typeof obj[k] === "number" && Number.isFinite(obj[k])) return obj[k];
+  return null;
+ };
+ const details = u.prompt_tokens_details || u.input_tokens_details || u.inputTokenDetails || {};
+ const input = pick(u, ["input_tokens", "inputTokens", "prompt_tokens", "promptTokens"]);
+ const output = pick(u, ["output_tokens", "outputTokens", "completion_tokens", "completionTokens"]);
+ const cacheRead = pick(u, ["cache_read_input_tokens", "cached_input_tokens", "cacheReadInputTokens"]) ?? pick(details, ["cached_tokens", "cachedTokens", "cache_read_tokens"]);
+ const cacheWrite = pick(u, ["cache_creation_input_tokens", "cache_write_input_tokens", "cacheCreationInputTokens"]);
+ const total = pick(u, ["total_tokens", "totalTokens"]) ?? (input != null && output != null ? input + output : null);
+ if (input == null && output == null && cacheRead == null && cacheWrite == null && total == null) return null;
+ return { input, output, cacheRead, cacheWrite, total, source: "provider message.usage" };
+}
 // one receipt per finished run, attached to the final assistant message
 function ocMakeReceipt() {
 const r = ocRun;
@@ -1012,7 +1031,8 @@ calls: (r.calls || []).map((c) => Object.assign({}, c)),
 cost0: r.cost0 != null ? r.cost0 : null,
 cost1: null,
 model: fm && typeof fm.model === "string" && fm.model ? fm.model : null,
-msgCost: fm && fm.usage && fm.usage.cost && typeof fm.usage.cost.total === "number" ? fm.usage.cost.total : null
+msgCost: fm && fm.usage && fm.usage.cost && typeof fm.usage.cost.total === "number" ? fm.usage.cost.total : null,
+usage: ocUsageSnapshot(fm)
 });
 return ocLastReceipt;
 }
@@ -1109,7 +1129,10 @@ files = fp.join(" ");
 }
 const vc = ocReceiptVia(rec);
 // display order first; r = how long a piece survives on a narrow screen (lowest r is dropped first)
-const parts = [{ t: tools, r: 4 }, { t: files, r: 2 }, { t: ocReceiptTokens(rec), r: 1 }, { t: vc.via, r: 0 }, { t: vc.cost, r: 3 }];
+const usageBit = rec.usage && (rec.usage.input != null || rec.usage.output != null)
+ ? "in " + (rec.usage.input == null ? "?" : ocTokFmt(rec.usage.input)) + " / out " + (rec.usage.output == null ? "?" : ocTokFmt(rec.usage.output))
+ : "";
+const parts = [{ t: tools, r: 4 }, { t: files, r: 2 }, { t: usageBit, r: 2 }, { t: ocReceiptTokens(rec), r: 1 }, { t: vc.via, r: 0 }, { t: vc.cost, r: 3 }];
 const fail = rec.failed ? chalk.hex(__ocPalette.error)(rec.failed + " failed") : "";
 let cells = OC_CFG.receiptTimeline === false ? 0 : (width < 60 ? 10 : width < 100 ? 18 : 26);
 let tl = null, line = "";
@@ -1577,6 +1600,7 @@ return m === "always" || ocProfile().name === "small";
 }
 // consecutive tool calls (no user/assistant message in between) form a run; finished ok calls of a run of groupMin+ collapse into one line
 let ocGroupCur = null;
+if (globalThis.__ocViewName === undefined) globalThis.__ocViewName = "expanded";
 function ocGroupJoin(c) {
 if (c.__ocGroup) return;
 if (!ocGroupCur) ocGroupCur = { members: [] };
@@ -1813,12 +1837,12 @@ if (OC_CFG.vimStatusTokens !== false && total != null) {
   const top = globalThis.__ocBarInfo && globalThis.__ocBarInfo.top;
   const ctx = Array.isArray(top) ? top.find((x) => x.t && String(x.t).indexOf("%") !== -1) : null;
   const tok = total >= 1000 ? (total / 1000).toFixed(1) + "k" : String(total);
-  tokenText = ctx && ctx.t ? tok + " tok · " + clean(ctx.t).trim() : tok + " tok";
+  tokenText = ctx && ctx.t ? "context " + tok + " · " + clean(ctx.t).trim() : "context " + tok;
 }
 // Keep the original live context meter in tokenText; do not add a second historical sparkline.
 if (model) right.push({ key: "model", text: model, short: modelShort, priority: 1 });
 if (tokenText) right.push({ key: "tokens", text: tokenText, priority: 3 });
-if (OC_CFG.vimStatusCost !== false && globalThis.__ocSessCost != null) right.push({ key: "cost", text: ocUsd(globalThis.__ocSessCost), priority: 4 });
+if (OC_CFG.vimStatusCost !== false && model) right.push({ key: "cost", text: globalThis.__ocSessCost != null ? ocUsd(globalThis.__ocSessCost) : "cost n/a", priority: 4 });
 if (OC_CFG.vimStatusSession !== false) {
   const bottom = globalThis.__ocBarInfo && globalThis.__ocBarInfo.bottom;
   const session = Array.isArray(bottom) ? bottom.find((x) => x.k === "session") : null;
@@ -1956,28 +1980,73 @@ function ocToggleCtxOverlay() {
 function ocCtxOverlayRender(width) {
   if (!globalThis.__ocCtxOverlayOpen) return [];
   const P = globalThis.__ocPalette || {};
-  const accent = (s) => chalk.hex(P.accent || "#F23625")(s);
-  const dim = (s) => chalk.hex(P.quote || P.dim || "#988F8C")(s);
-  const plain = (s) => String(s == null ? "" : s).replace(/\x1b\[[0-9;]*m/g, "");
+  const paint = (key, fallback) => (s) => chalk.hex(P[key] || fallback)(String(s));
+  const heading = paint("heading", P.accent || "#FF806B");
+  const accent = paint("accent", "#F23625");
+  const value = paint("text", "#EBE0DE");
+  const label = paint("label", "#F5B49F");
+  const muted = paint("metadata", P.quote || P.dim || "#988F8C");
+  const inner = Math.max(8, Math.floor(width) - 4);
+  const narrow = inner < 68;
+  const tiny = inner < 42;
+  const shortScreen = Number(process.stdout && process.stdout.rows || 24) <= 12;
   const info = globalThis.__ocBarInfo || {};
   const top = Array.isArray(info.top) ? info.top : [];
-  const bottom = Array.isArray(info.bottom) ? info.bottom : [];
+  const usageLine = top.find((x) => x && x.t && /%/.test(String(x.t).replace(/\x1b\[[0-9;]*m/g, "")));
+  const usageText = usageLine ? String(usageLine.t).replace(/\x1b\[[0-9;]*m/g, "").trim() : "";
+  const pctMatch = usageText.match(/(\d+(?:\.\d+)?)\s*%/);
+  const pct = pctMatch ? Math.max(0, Math.min(100, Number(pctMatch[1]))) : null;
+  const total = typeof ocTotalTokens === "number" ? ocTotalTokens : null;
+  const model = globalThis.__ocSessModel || "model unavailable";
+  const usage = ocLastReceipt && ocLastReceipt.usage;
+  const fmt = (n) => n == null ? "n/a" : Number(n).toLocaleString();
+  const cost = globalThis.__ocSessCost;
+  const costText = cost != null ? ocUsd(cost) : "not available";
+  const costSource = String(globalThis.__ocCostSource || "source unavailable").toLowerCase();
+  const toolView = globalThis.__ocViewName === "folded" ? "folded" : "expanded";
+  const rateKeys = Object.keys(OC_CFG.prices || {});
+  const barCells = Math.max(5, Math.min(24, inner - (narrow ? 15 : 20)));
+  const filled = pct == null ? 0 : Math.round(barCells * pct / 100);
+  const bar = (accent("█".repeat(filled)) + muted("░".repeat(Math.max(0, barCells - filled))));
   const rows = [];
-  rows.push(accent("  ◈ SESSION / CONTEXT") + dim("  · ctrl+r to close"));
-  for (const seg of top) if (seg && seg.t) rows.push("  " + plain(seg.t));
-  for (const seg of bottom) if (seg && seg.t) rows.push("  " + plain(seg.t));
-  const model = globalThis.__ocSessModel;
-  if (model && !rows.some((r) => plain(r).includes(String(model)))) rows.push("  " + dim("model") + "  " + String(model));
-  const usage = top.find((x) => x && x.t && /%/.test(plain(x.t)));
-  if (usage) rows.push("  " + dim("context usage") + "  " + plain(usage.t));
-  return rows.map((r) => ocFit(r, Math.max(1, width)));
+  rows.push(heading("model") + muted("  ·  ") + value(String(model)));
+  const ctxLabel = pct != null ? pct.toFixed(pct % 1 ? 1 : 0) + "%" : "n/a";
+  const ctxCount = total != null ? total.toLocaleString() + " tokens" : "token count unavailable";
+  rows.push(label(tiny ? "ctx" : "context") + "  " + accent(ctxLabel) + muted("  ·  ") + value(ctxCount));
+  if (pct != null) rows.push(bar);
+  if (!shortScreen) {
+    if (!narrow) {
+      const left = label("input") + " " + value(fmt(usage && usage.input));
+      const right = label("output") + " " + value(fmt(usage && usage.output));
+      const gap = Math.max(2, inner - 2 - (left.replace(/\x1b\[[0-9;]*m/g, "").length) - right.replace(/\x1b\[[0-9;]*m/g, "").length);
+      rows.push(left + " ".repeat(gap) + right);
+    } else {
+      rows.push(label(tiny ? "in" : "input") + "  " + value(fmt(usage && usage.input)));
+      rows.push(label(tiny ? "out" : "output") + "  " + value(fmt(usage && usage.output)));
+    }
+    if (usage && (usage.cacheRead != null || usage.cacheWrite != null)) {
+      const cache = label("cache") + "  " + value(fmt(usage.cacheRead)) + muted(" read");
+      if (!narrow && usage.cacheWrite != null) rows.push(cache + muted("  ·  ") + value(fmt(usage.cacheWrite)) + muted(" written"));
+      else rows.push(cache + (usage.cacheWrite != null ? muted("  ·  ") + value(fmt(usage.cacheWrite)) + muted(" written") : ""));
+    }
+  }
+  rows.push(label(tiny ? "cost" : "session cost") + "  " + accent(costText) + (tiny ? "" : muted("  ·  ") + muted(costSource)));
+  if (!shortScreen) {
+    const detail = label("tools") + "  " + value(toolView) + muted("  ·  ") + label("rates") + "  " + value(rateKeys.length ? "configured" : "not configured");
+    rows.push(detail);
+  }
+  // On narrow terminals the popup remains a single column; on very short screens
+  // secondary cache/configuration detail is omitted before the primary metrics.
+  const maxContentRows = shortScreen ? 5 : (Number(process.stdout && process.stdout.rows || 24) <= 16 ? 7 : 9);
+  const compactRows = rows.slice(0, maxContentRows);
+  return ocPopupPanel(compactRows, width, inner < 30 ? "session" : "session · ctrl+r close");
 }
 // Shared popup styling for custom pickers: match the slash-command/suggestions menu.
 function ocPopupPanel(rows, width, title) {
   const P = globalThis.__ocPalette || {};
   const edge = (s) => chalk.hex(P.border || "#52443D")(s);
   const inner = Math.max(8, Math.floor(width) - 4);
-  const topLabel = " " + String(title || "activity").toUpperCase() + " ";
+  const topLabel = " " + String(title || "activity").toLowerCase() + " ";
   const top = "\u250c\u2500" + topLabel + "\u2500".repeat(Math.max(0, inner + 1 - topLabel.length)) + "\u2510";
   const out = [edge(top)];
   for (const raw of rows) {
@@ -2126,7 +2195,7 @@ function ocChangesPanelRender(width) {
   }
   if (st.rows.length > 8) rows.push(dim("  … " + (st.rows.length - Math.min(8, st.rows.length)) + " other paths; selection scrolls"));
   if (selected && st.preview && st.preview.length) {
-    rows.push(accent("  ── PREVIEW  /  " + (st.previewFile || selected.file).toUpperCase() + " ──"));
+    rows.push(accent("  ── preview  /  " + String(st.previewFile || selected.file).toLowerCase() + " ──"));
     for (const item of st.preview.slice(0, 7)) {
       const line = item.line;
       const tone = line.startsWith("+") && !line.startsWith("+++") ? good : line.startsWith("-") && !line.startsWith("---") ? bad : line.startsWith("@@") ? accent : dim;
@@ -2327,6 +2396,16 @@ else if (c === " ") expected = "\x00";
 else return false;
 } else if (shift && k.length === 1) expected = k.toUpperCase();
 if (alt) expected = "\x1b" + expected;
+// Kitty keyboard protocol encodes Ctrl+R as CSI 114;5u instead of the legacy 0x12 byte.
+// Accept both forms so custom shortcuts work in Kitty/Ghostty terminals with enhanced keys enabled.
+const kitty = data.match(/^\x1b\[(\d+);(\d+)(?::\d+)?u$/);
+if (kitty && k.length === 1) {
+const kittyCode = Number(kitty[1]);
+const kittyMods = Number(kitty[2]) - 1; // Kitty modifier parameter is the bitmask plus one.
+const wantedMods = (shift ? 1 : 0) | (alt ? 2 : 0) | (ctrl ? 4 : 0);
+const wantedCode = (shift ? k.toUpperCase() : k.toLowerCase()).codePointAt(0);
+if (kittyCode === wantedCode && kittyMods === wantedMods) return true;
+}
 return data === expected;
 }
 function ocKeyAny(data, keys) {
@@ -2499,8 +2578,94 @@ const EXPLICIT = args.find((a) => !a.startsWith("--"));
 const RUNNING = runningRoot();
 const ROOT = EXPLICIT || RUNNING || CANDIDATES.find(isRoot) || TERMUX_ROOT;
 const DIST = path.join(ROOT, "dist");
-// second target: pi-tui's editor component (slash menu placement)
-const EDITOR = path.join(ROOT, "node_modules/@earendil-works/pi-tui/dist/components/editor.js");
+// second target: pi-tui's editor component (slash menu placement).
+// OpenClaw 2026.11.x may install pi-tui through a different npm/pnpm layout;
+// resolve the package that OpenClaw actually has rather than assuming it is hoisted.
+function findPiTuiPackageRoot(root) {
+const packageName = "@earendil-works/pi-tui";
+const isPackage = (dir) => {
+try { return JSON.parse(fs.readFileSync(path.join(dir, "package.json"), "utf8")).name === packageName; }
+catch { return false; }
+};
+const fromEntry = (entry) => {
+if (!entry) return null;
+let d = path.dirname(entry);
+for (let i = 0; i < 8; i++) {
+if (isPackage(d)) return d;
+const up = path.dirname(d);
+if (up === d) break;
+d = up;
+}
+return null;
+};
+try {
+const entry = require.resolve(packageName, { paths: [root] });
+const found = fromEntry(entry);
+if (found) return found;
+} catch {}
+const direct = path.join(root, "node_modules", "@earendil-works", "pi-tui");
+if (isPackage(direct)) return direct;
+// pnpm and nested npm layouts can keep the package below another node_modules tree.
+const seen = new Set();
+const scan = (dir, depth) => {
+if (depth > 9 || seen.has(dir)) return null;
+seen.add(dir);
+let entries;
+try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return null; }
+for (const e of entries) {
+if (!e.isDirectory()) continue;
+const child = path.join(dir, e.name);
+if (e.name === "pi-tui" && path.basename(path.dirname(child)) === "@earendil-works" && isPackage(child)) return child;
+}
+const inPnpmStore = dir.split(path.sep).includes(".pnpm");
+for (const e of entries) {
+if (!e.isDirectory()) continue;
+if (!inPnpmStore && e.name !== "node_modules" && e.name !== ".pnpm" && e.name !== "@earendil-works" && !e.name.startsWith("@")) continue;
+const found = scan(path.join(dir, e.name), depth + 1);
+if (found) return found;
+}
+return null;
+};
+return scan(path.join(root, "node_modules"), 0);
+}
+function findPiTuiEditorFile(rootOrPackage) {
+const pkg = isPiTuiPackageRoot(rootOrPackage) ? rootOrPackage : findPiTuiPackageRoot(rootOrPackage);
+if (!pkg) return null;
+const candidates = [
+path.join(pkg, "dist", "components", "editor.js"),
+path.join(pkg, "dist", "components", "editor.mjs"),
+path.join(pkg, "dist", "components", "editor.cjs"),
+path.join(pkg, "dist", "editor.js"),
+path.join(pkg, "dist", "editor.mjs")
+];
+for (const f of candidates) if (fs.existsSync(f) && fs.statSync(f).isFile()) return f;
+// Last resort: retain the editor module if a release relocates it within dist/.
+const dist = path.join(pkg, "dist");
+const seen = new Set();
+const scan = (dir, depth) => {
+if (depth > 8 || seen.has(dir)) return null;
+seen.add(dir);
+let entries;
+try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return null; }
+for (const e of entries) {
+if (e.isFile() && /^editor\\.(?:js|mjs|cjs)$/.test(e.name)) return path.join(dir, e.name);
+}
+for (const e of entries) {
+if (!e.isDirectory()) continue;
+const found = scan(path.join(dir, e.name), depth + 1);
+if (found) return found;
+}
+return null;
+};
+return scan(dist, 0);
+}
+function isPiTuiPackageRoot(dir) {
+try { return JSON.parse(fs.readFileSync(path.join(dir, "package.json"), "utf8")).name === "@earendil-works/pi-tui"; }
+catch { return false; }
+}
+const PI_TUI_ROOT = findPiTuiPackageRoot(ROOT);
+const EDITOR = findPiTuiEditorFile(PI_TUI_ROOT || ROOT) ||
+path.join(PI_TUI_ROOT || path.join(ROOT, "node_modules", "@earendil-works", "pi-tui"), "dist", "components", "editor.js");
 // ---- group accounting: a partial patch must not look like success ----
 let G_OK = 0, G_FAIL = 0;
 if (!AUTO) console.log("oc-theme-patch " + OC_PATCH_VERSION + "  (" + __filename + ")");
@@ -2559,14 +2724,16 @@ return bak;
 // the matching version from npm and use that instead.
 function fetchPristineEditor(root) {
 try {
-const pkgDir = path.join(root, "node_modules", "@earendil-works", "pi-tui");
+const pkgDir = findPiTuiPackageRoot(root);
+if (!pkgDir) return null;
 const ver = JSON.parse(fs.readFileSync(path.join(pkgDir, "package.json"), "utf8")).version;
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "oc-pitui-"));
 const win = process.platform === "win32";
 const r = spawnSync(win ? "npm.cmd" : "npm", ["install", "--no-save", "--prefix", tmp, "@earendil-works/pi-tui@" + ver], { encoding: "utf8", shell: win });
 if (r.status !== 0) return null;
-const f = path.join(tmp, "node_modules", "@earendil-works", "pi-tui", "dist", "components", "editor.js");
-if (!fs.existsSync(f)) return null;
+const freshRoot = findPiTuiPackageRoot(tmp);
+const f = freshRoot && findPiTuiEditorFile(freshRoot);
+if (!f) return null;
 return read(f);
 } catch { return null; }
 }
@@ -2688,7 +2855,7 @@ process.exit(0);
 }
 if (STATUS) {
 console.log("tui chunk: " + STATE_TEXT[backupState(target, orig, isPatchedChunk)]);
-console.log("editor.js: " + STATE_TEXT[backupState(EDITOR, backupPath(EDITOR), isPatchedEditor)]);
+console.log("pi-tui editor: " + STATE_TEXT[backupState(EDITOR, backupPath(EDITOR), isPatchedEditor)]);
 process.exit(0);
 }
 for (const [file, bak, isP, label] of [[target, orig, isPatchedChunk, "tui chunk"], [EDITOR, backupPath(EDITOR), isPatchedEditor, "editor.js"]]) {
@@ -2903,8 +3070,8 @@ return chalk.bgHex(add ? (op.toolSuccessBg || "#262A1B") : (op.toolErrorBg || "#
 };
 const ocLines = this.box.render(width);
 const ocCollapsed = typeof ocCollapsedOutput === "function" && !this.isPartial && !this.isError ? ocCollapsedOutput(ocLines, width) : ocLines;
-// Claude-style inline activity: keep each call to one readable row by default.
-// Ctrl+X -> expanded reveals the full arguments/output; errors remain expanded for visibility.
+// Transparency-first default: expanded calls expose arguments and output.
+// Ctrl+X folds the stream when you want a quieter view; errors remain expanded.
 if (globalThis.__ocViewName !== "expanded" && !this.isError && ocLines.length > 0) {
 const head = ocLines[0].replace(/(?:\s|\x1b\[[0-9;]*m)+$/, "");
 const brief = typeof ocArgBrief === "function" ? ocArgBrief(this) : "";
@@ -3003,7 +3170,7 @@ return b && c;
 // 1f. runtime: shared state for everything below. __ocPalette carries the resolved palette.
 group("runtime helpers", () => rep("runtime", "};\nconst markdownTheme = {",
 "};\nconst ocTheme = tuiTheme;\nconst __ocPalette = " + JSON.stringify(darkPalette()) + ";\nglobalThis.__ocPalette = __ocPalette;\n"
-+ RUNTIME.replace(/\btheme\b/g, "ocTheme").replace(/__dirname/g, JSON.stringify(__dirname))
++ RUNTIME.replace(/\btheme\b/g, "ocTheme").replace(/__dirname/g, JSON.stringify(__dirname)).replace("const markdownTheme = {", `const markdownTheme = { heading: (text) => chalk.bold(chalk.hex(__ocPalette.heading || __ocPalette.accentSoft)(text)), heading1: (text) => chalk.bold(chalk.hex(__ocPalette.heading || __ocPalette.accentSoft)(text)), heading2: (text) => chalk.bold(chalk.hex(__ocPalette.label || __ocPalette.code)(text)), heading3: (text) => chalk.bold(chalk.hex(__ocPalette.link)(text)), strong: (text) => chalk.bold(chalk.hex(__ocPalette.body || __ocPalette.text)(text)), emphasis: (text) => chalk.italic(chalk.hex(__ocPalette.label || __ocPalette.code)(text)), code: (text) => chalk.hex(__ocPalette.code)(text), link: (text) => chalk.hex(__ocPalette.link)(text), quote: (text) => chalk.hex(__ocPalette.quote)(text), listBullet: (text) => chalk.hex(__ocPalette.accentSoft || __ocPalette.accent)(text), `)
 + "\nglobalThis.__ocCfg = OC_CFG;\nglobalThis.__ocToggleCtxOverlay = ocToggleCtxOverlay;\nglobalThis.__ocCtxOverlayRender = ocCtxOverlayRender;\nglobalThis.__ocBarRightText = ocBarRightText;\nglobalThis.__ocBarPrefix = ocBarPrefix;\nglobalThis.__ocAttachmentChips = ocAttachmentChips;\nglobalThis.__ocCheckPaste = ocCheckPaste;\nglobalThis.__ocPromptHistory = [];\nglobalThis.__ocPromptHistoryRender = ocPromptHistoryRows;\nglobalThis.__ocChangesPanelRender = ocChangesPanelRender;\nconst markdownTheme = {"));
 // completion verbs live at module scope so the run-lifecycle factory (a different scope) can reach them.
 group("completion verbs", () => rep("completion verbs", "const defaultWaitingPhrases = [", `const completionVerbs = ${JSON.stringify(CFG.completionVerbs)};
@@ -3323,7 +3490,7 @@ for (const [key, property] of SHORTCUT_HANDLERS) {`, `	handleInput(data) {
 if (isKeyRelease(data)) return;
 // focus reporting events (\x1b[I / \x1b[O): track focus, never feed them to the editor
 if (data === "\x1b[I" || data === "\x1b[O") { if (globalThis.__ocFocusEvent) globalThis.__ocFocusEvent(data === "\x1b[I"); return; }
-// oc context overlay (the configured key; ctrl+t belongs to openclaw upstream)
+// oc context overlay (ctrl+r is not a documented OpenClaw default shortcut)
 if (typeof ocKeyMatches === "function" && ocKeyMatches(data, OC_CFG.keyCtxOverlay)) {
 if (typeof globalThis.__ocToggleCtxOverlay === "function") globalThis.__ocToggleCtxOverlay();
 return;
@@ -3606,8 +3773,13 @@ console.log("gateway chat chunk written. queued image attachments are forwarded 
 }
 // 6. second target: slash-command / autocomplete menu ABOVE the chat bar + rounded chat box.
 if (!fs.existsSync(EDITOR)) {
-if (!AUTO) console.log("\neditor.js not found at " + EDITOR + ", skipping slash-menu patch");
+if (!AUTO) {
+console.log("\npi-tui package: " + (PI_TUI_ROOT || "(not found under this OpenClaw root)"));
+console.log("editor component: not found (checked package dist/components and dist roots)");
+console.log("skipping slash-menu, chat-box and editor-key patches; the main TUI patch can still apply");
+}
 } else {
+if (!AUTO) console.log("\npi-tui editor component: " + EDITOR);
 const eOrig = ensureBackup(EDITOR, "editor.js");
 if (eOrig && !AUTO) console.log("\nbackup ->", eOrig);
 s = read(eOrig);
